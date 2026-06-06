@@ -2,11 +2,11 @@
 name: pdf2md-fx
 description: PDF → Markdown 一体化枢纽，智能路由两类任务：A 格式化存档/含公式精读（MinerU 精准 API，含图+公式+分批拼接+图片本地化+Typora 超大文件自动分节）、B 临时阅读·纯文字（本地分栏合并或 MinerU 轻量 API，节约 token，不含公式）。自动判断调用来源（其它 skill 调用 vs 用户直接调用）并路由，含公式任务强制使用精准 API（轻量 API 经实测会错认希腊字母、产生字符间距错误）。触发词：PDF转MD、解析PDF、提取文献、PDF存档、临时阅读PDF、提取公式、PDF转Markdown、MinerU、参考文献数字化、读论文、章节资料数字化。
 metadata:
-  version: "1.1"
-  last-updated: "2026-05-30"
+  version: "1.3"
+  last-updated: "2026-06-04"
 ---
 
-# pdf2md-fx — PDF→MD 二模式枢纽 v1.1
+# pdf2md-fx — PDF→MD 二模式枢纽 v1.3
 
 把 PDF 转成 Markdown 的一体化 skill，**自包含**（已复制 mineru-pdf-parse 的精准/轻量 API 客户端与 mineru-img-convert 的图片本地化逻辑，不依赖外部 skill）。
 
@@ -70,7 +70,15 @@ metadata:
    确认 mapping 后加 `apply`。
    → 最终 `<目标目录>/<文献名>.md` + `<目标目录>/img-<文献名>/`；
      过程文件（zip 解压、`_merged/` 等）留在 `_mineru_out/`。
-6. **超大文件拆分（Typora 适配）**：Typora 默认硬限 **2 MB**，若最终 MD > **1.5 MB** 则自动拆分：
+6. **MinerU 后处理修正（v1.3，学位论文/书籍强烈建议）**：前提是 MinerU 不漏标题、只是层级/序号错乱，据此分四步修订（含删图片描述块）：
+   - **步骤1 目录区误标题还原**：以「目录」标题为起点、其后第一个「干净标题」（无点引线页码尾，通常是『图清单』或正文首个『第X章』）为终点，区间内所有 `#` 行都是目录条目 → 去 `#` 还原为正文；另对全文任何带「点引线+页码」尾的 `#` 行一并还原。
+   - **步骤2 按序号定级 + 删描述块**：`第X章`→h1 / `X.X`→h2 / `X.X.X`→h3 / `X.X.X.X`→h4（按小数点段数定级，封顶 h6）；`(X)`/`（X）` 半全角括号数字小标题→**h5**；并删除每张图后 MinerU 注入的 `<details><summary>类型</summary>…</details>` 图片描述块（text_image / natural_image / flowchart 等约 17 种 AI 英文图注）。
+   - **步骤3 无序号标题回填目录序号**：先解析目录区建立『标题文字→序号』映射；正文无序号标题若能在目录里找到同名带序号条目，则把序号补进标题并按序号定级（如 `# 研究背景` + 目录『1.1 研究背景』→ `## 1.1 研究背景`）。
+   - **步骤4 目录也无序号 → 保持原样**：级别不动，留待人工处理，报告中列出样例数量。
+   先 dry run 看报告：`python $S/mineru_postfix.py --md "<目标目录>/<文献名>.md"`
+   核对「锚点目录区 / 步骤1还原数 / 各级标题数与(X)→h5数 / 步骤3回填数 / 步骤4保持原样样例 / 描述块类型分布」无误后加 `apply` 原地修正（或 `--out` 写新文件）。
+   > **已知限制**：① 若该论文目录与正文小节都丢了序号（MinerU 整篇未转出 `x.x`），步骤3/4 无源可补，小节保持 h1（如贺志远），需人工补级。② 超长章标题偶被断成两个 `#` 行（如 `# 第二章 …综合与` + `# TriMule…`），本步不自动合并。
+7. **超大文件拆分（Typora 适配）**：Typora 默认硬限 **2 MB**，若最终 MD > **1.5 MB** 则自动拆分：
    检查：`python $S/split_md.py --md "<目标目录>/<文献名>.md" --out "<目标目录>" --title "<文献名>" --check-only`
    → exit 0 = 无需；exit 1 = 需要拆分，执行：
    `python $S/split_md.py --md "<目标目录>/<文献名>.md" --out "<目标目录>" --title "<文献名>"`
@@ -150,6 +158,7 @@ metadata:
 | `mineru_precise.py` | 精准 API（zip：md+图，需 Key；`--check-key` 校验有效期） | A |
 | `merge_md.py` | 多批 md 拼接 + images 合并 + 衔接校验报告 | A |
 | `img_localize.py` | 图片相对化 + 丢未引用图 + 图号语义重命名 | A |
+| `mineru_postfix.py` | 后处理修正（4步）：目录区误标题还原 + 按序号定级((X)→h5) + 目录回填序号 + 删图片描述块（v1.3） | A |
 | `split_md.py` | 超大 MD 按 BATCH BOUNDARY 拆分（Typora 2MB 适配）；`--check-only` 仅判断 | A |
 | `local_read.py` | 本地字符级分栏判断与合并 | B（文字型） |
 | `mineru_light.py` | 轻量 API（免 Key，仅回 md，勿用于公式） | B（图片型） |

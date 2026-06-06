@@ -1,6 +1,6 @@
 Skill        : pdf2md-fx
-Version      : v1.1
-Last-updated : 2026-05-30
+Version      : v1.3
+Last-updated : 2026-06-04
 Author       : 达哥 + Claude Code
 
 定位
@@ -13,6 +13,7 @@ Author       : 达哥 + Claude Code
   mineru_precise.py 精准 API（zip：md+图，需 Key，单文件≤200页）              —— A
   merge_md.py       多批 md 拼接 + images 合并 + 衔接校验                      —— A
   img_localize.py   图片相对化 + 丢未引用图 + 图号语义重命名                  —— A
+  mineru_postfix.py 后处理修正：目录误标题还原+标题按序号重定级+删图片描述块  —— A
   split_md.py       超大 MD 按 BATCH BOUNDARY 拆分（Typora 2MB 适配）          —— A
   local_read.py     本地字符级分栏判断与合并（亚秒，0 token）                 —— B 文字型
   mineru_light.py   轻量 API（免 Key，仅回 md，勿用于公式）                   —— B 图片型
@@ -34,6 +35,12 @@ language（OCR 才生效）
   中文 ch / 英文 en / 德法等 latin / 俄乌等 east_slavic
 
 变更摘要（每版 ≤100 字）
+  v1.3    mineru_postfix.py 重写为四步算法：①以目录标题→首个干净标题为区间还原目录误标题(不再仅靠点
+          引线)；②按序号定级且 (X)/（X）→h5；③无序号标题回填目录序号定级；④目录亦无序号则保持原样。
+          修复 v1.2 把 (X) 小标题留在 h1 的问题。董/贺两篇从 PDF 全流程实测到 output。
+  v1.2    新增 mineru_postfix.py（模式 A 步骤6）：修正 MinerU 精准转换三缺陷——目录条目误标题还原为
+          正文、正文标题按行首序号(第x章/x.x/x.x.x/x.x.x.x)重定级、删除17种<details>图片描述块；
+          董成林/贺志远两篇实测通过（有序号/丢序号两类）。无序号小节保持h1并报告。
   v1.1    移除 C 类（含公式禁用轻量 API，经实测Λ→A等严重错误）；新增 split_md.py（Typora
           2MB 拆分）；智能路由：skill 调用自动判断文字/公式，用户调用二选一；Key 检查前置。
   v1.0.3  新增 split_md.py 步骤6：img_localize后若MD>1.5MB自动拆分，部分文件共享img目录。
